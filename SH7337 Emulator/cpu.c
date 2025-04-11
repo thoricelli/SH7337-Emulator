@@ -440,13 +440,26 @@ void execute_instruction(unsigned char instruction[2]) {
 
 #define SYSCALL 0x80010070
 
+unsigned long previousPC;
+
 //TODO: Add execution states.
 void cpu_tick() {
 	if (delay_slot == NULL) {
 		//When we jump to 0x80010070, in headless, that means we're trying to access a syscall.
 
-		if (cpu_state.PC != SYSCALL)
-			execute_instruction(mmu_translate(cpu_state.PC));
+		if (cpu_state.PC != SYSCALL) {
+			unsigned long* address = mmu_translate(cpu_state.PC);
+
+			if (address != NULL) {
+				previousPC = cpu_state.PC;
+				execute_instruction(address);
+			}
+			else {
+				set_pc_little_endian(previousPC);
+				pause_cpu();
+				gdb_SIGILL();
+			}
+		}
 		else
 			execute_syscall(&cpu_state);
 	}

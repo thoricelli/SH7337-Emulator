@@ -95,10 +95,12 @@ char* cpu_get_memory(char* message) {
 
 	for (i = 0; i < size; i++)
 	{
-		to_hex_array(*((unsigned char*)(memory + i)), buffer + (i * 2), 2);
+		unsigned char value = *((unsigned char*)memory + i);
+
+		to_hex_array(value, buffer + (i * 2), 2);
 	}
 
-	buffer[size + 1] = '\0';
+	buffer[size * 2] = '\0';
 
 	return buffer;
 }
@@ -265,4 +267,10 @@ void gdb_start() {
 	WSACleanup();
 
 	return 0;
+}
+
+void gdb_loop() {
+	while (1) {
+		gdb_start();
+	}
 }

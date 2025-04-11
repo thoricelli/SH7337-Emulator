@@ -92,7 +92,7 @@ int main(void)
 
     pause_cpu();
 
-    SDL_Thread* thread = SDL_CreateThread(gdb_start, "gdb", NULL);
+    SDL_Thread* thread = SDL_CreateThread(gdb_loop, "gdb", NULL);
 
     cpu_running_state_t* state = get_cpu_running_state();
 
