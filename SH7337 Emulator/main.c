@@ -11,6 +11,8 @@
 
 #define SCALE 4
 
+#define GDB_ENABLED 1
+
 void sdl_log_error() {
     printf("SDL Error. %s\n", SDL_GetError());
 }
@@ -73,8 +75,6 @@ void *load_file(const char* filename) {
 
 int main(void)
 {
-    char paused = 1;
-
     SDL_Window* window = NULL;
     SDL_Renderer* renderer = NULL;
 
@@ -85,16 +85,21 @@ int main(void)
     int running = 1;
     SDL_Event event;
 
+    cpu_running_state_t* state = get_cpu_running_state();
+
+    state->paused = 0;
+    state->step = 0;
+
     set_rom_ptr(rom);
     
     set_register(0x88020000, 15);
     set_pc_little_endian(0x00300200);
 
-    pause_cpu();
+    if (GDB_ENABLED) {
+        pause_cpu();
 
-    SDL_Thread* thread = SDL_CreateThread(gdb_loop, "gdb", NULL);
-
-    cpu_running_state_t* state = get_cpu_running_state();
+        SDL_Thread* thread = SDL_CreateThread(gdb_loop, "gdb", NULL);
+    }
 
     while (running) {
         while (SDL_PollEvent(&event)) {

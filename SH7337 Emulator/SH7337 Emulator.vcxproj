@@ -131,21 +131,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="checksum.c" />
     <ClCompile Include="cpu.c" />
     <ClCompile Include="endianness.c" />
     <ClCompile Include="gdb.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="mmu.c" />
+    <ClCompile Include="string.c" />
     <ClCompile Include="syscall.c" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TEST.G1A" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="checksum.h" />
     <ClInclude Include="cpu.h" />
     <ClInclude Include="endianness.h" />
     <ClInclude Include="gdb.h" />
     <ClInclude Include="mmu.h" />
+    <ClInclude Include="string.h" />
     <ClInclude Include="syscall.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

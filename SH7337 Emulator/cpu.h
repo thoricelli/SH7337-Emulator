@@ -49,6 +49,9 @@ typedef struct {
 
 typedef struct {
 	char paused;
+	char step;
+	unsigned char breakpoint_index;
+	unsigned long breakpoints[255];
 } cpu_running_state_t;
 
 
@@ -65,3 +68,4 @@ void set_pc_big_endian(unsigned long PC);
 
 void execute_instruction(unsigned char instruction[2]);
 void cpu_tick();
+void step_cpu();

@@ -9,6 +9,9 @@
 #include "cpu.h"
 #include "mmu.h"
 #include "endianness.h"
+#include "gdb.h"
+#include "string.h"
+#include "checksum.h"
 
 SOCKET server_fd, client_fd;
 struct sockaddr_in server, client;
@@ -16,14 +19,6 @@ struct sockaddr_in server, client;
 cpu_running_state_t* cpu_running_state;
 
 #define LONG_HEX_SIZE 8
-
-void to_hex_array(unsigned long value, char* hex_array, int size) {
-	static const char hex_digits[] = "0123456789ABCDEF";
-	for (int i = size - 1; i >= 0; --i) {
-		hex_array[i] = hex_digits[value & 0xF];
-		value >>= 4;
-	}
-}
 
 char* cpu_state_to_string() {
 	sh7337_t cpu_state = *get_cpu_state();
@@ -39,7 +34,7 @@ char* cpu_state_to_string() {
 	//Bank 0 registers (R0-R6)
 	for (unsigned int i = 0; i < bank0Size; i++)
 	{
-		to_hex_array(swap_uint32(cpu_state.bank0->R[i]), string + index + (i * LONG_HEX_SIZE), 8);
+		to_hex_array(cpu_state.bank0->R[i], string + index + (i * LONG_HEX_SIZE), 8);
 	}
 
 	index += (bank0Size * LONG_HEX_SIZE);
@@ -74,14 +69,7 @@ char* cpu_get_memory(char* message) {
 	//First value before the comma is the address
 	//Value after comma is the length.
 
-	char* size_ptr = (intptr_t)message;
-
-	while (*size_ptr != '/0' && *size_ptr != ',') {
-		size_ptr++;
-	}
-
-	*size_ptr = '\0';
-	size_ptr++;
+	char* size_ptr = (char*)strchr(message, ',') + 1;
 
 	//Get the size of the memory needed, then malloc a string.
 	unsigned long address = strtoul(message, NULL, 16);
@@ -91,29 +79,58 @@ char* cpu_get_memory(char* message) {
 
 	unsigned long* memory = mmu_translate(address);
 
-	unsigned int i = 0;
+	if (memory != NULL) {
+		unsigned int i = 0;
 
-	for (i = 0; i < size; i++)
-	{
-		unsigned char value = *((unsigned char*)memory + i);
+		for (i = 0; i < size; i++)
+		{
+			unsigned char value = *((unsigned char*)memory + i);
 
-		to_hex_array(value, buffer + (i * 2), 2);
+			to_hex_array(value, buffer + (i * 2), 2);
+		}
+
+		buffer[size * 2] = '\0';
 	}
-
-	buffer[size * 2] = '\0';
+	else {
+		buffer[0] = '\0';
+	}
 
 	return buffer;
 }
 
-unsigned char checskum256(char* msg) {
-	unsigned char sum = 0;
+//Well todo, is change the way breakpoints work
+//I mean, currently it isn't a 1 by 1 simulation of the actualy CPU, thats done later
+//But removing a breakpoint causes some unwanted behaviour, this is because it removes a breakpoint somewhere in the list.
+//I should probably, when adding a breakpoint just loop to see which address is zeroed out.
 
-	while (*msg && *msg != '\0') {
-		sum += (unsigned char)*msg;
-		msg++;
+void gdb_remove_breakpoint(const char* message) {
+	char* size_ptr = strchr(message, ',');
+
+	unsigned long address = strtoul(message, NULL, 16);
+
+	char found = 0;
+	size_t index = 0;
+
+	while (index < cpu_running_state->breakpoint_index && found == 0) {
+		if (cpu_running_state->breakpoints[index] == address)
+			found = 1;
+
+		index++;
 	}
 
-	return sum;
+	if (found) {
+		cpu_running_state->breakpoint_index--;
+		cpu_running_state->breakpoints[index] = 0;
+	}
+}
+
+void gdb_add_breakpoint(const char* message) {
+	char* size_ptr = strchr(message, ',');
+
+	cpu_running_state->breakpoints[cpu_running_state->breakpoint_index] = strtoul(message, NULL, 16);
+
+	if (sizeof(cpu_running_state->breakpoints) / sizeof(unsigned long) > cpu_running_state->breakpoint_index)
+		cpu_running_state->breakpoint_index++;
 }
 
 void send_raw(const char* message) {
@@ -144,11 +161,29 @@ void gdb_send_message(const char* response) {
 	send_raw(response_buffer);
 }
 
+char* gdb_get_signal_string(posix_signal signal) {
+	char string[4];
+	string[0] = 'S';
+
+	to_hex_array(signal, string + 1, 2);
+
+	string[3] = '\0';
+
+	return string;
+}
+
+void gdb_send_interrupt(posix_signal signal) {
+	char* interrupt_str = gdb_get_signal_string(signal);
+
+	gdb_send_message(interrupt_str);
+}
+
 char* gdb_get_response(char* command) {
 	if (STARTS_WITH(command, "?")) {
-		return "S00";
+		return gdb_get_signal_string(SIGTRAP);
 	}
-	else if (STARTS_WITH(command, "c")) {
+	else if (STARTS_WITH(command, "c") || STARTS_WITH(command, "Hc0")) {
+		cpu_running_state->step = 0;
 		cpu_running_state->paused = 0;
 		return "OK";
 	}
@@ -165,6 +200,19 @@ char* gdb_get_response(char* command) {
 		return cpu_get_memory(command + 1);
 	}
 	else if (STARTS_WITH(command, "D")) {
+		return "OK";
+	}
+	else if (STARTS_WITH(command, "S04") || STARTS_WITH(command, "s")) {
+		cpu_running_state->step = 1;
+		cpu_running_state->paused = 0;
+		return "OK";
+	}
+	else if (STARTS_WITH(command, "Z0")) {
+		gdb_add_breakpoint(command + 3);
+		return "OK";
+	}
+	else if (STARTS_WITH(command, "z0")) {
+		gdb_remove_breakpoint(command + 3);
 		return "OK";
 	}
 	else {
@@ -190,44 +238,26 @@ void gdb_message_received(char* buffer) {
 
 	unsigned int response_index = 0;
 
-	//First char is always the ack.
+	//First get the ack.
 	char ack = buffer[0];
 
 	//TODO: Retransmit when - received!
-	if (ack == '+')
-		i++;
-	else if (ack == '-')
-		i += 2;
 
-	//Then we require a dollar sign.
-	char leading = buffer[i];
+	//Find the dollar sign index.
+	char* dollar = strchr(buffer + i, '$');
 
-	if (leading != '$') {
+	if (dollar == NULL || *dollar != '$') {
 		gdb_send_received("+");
 		return;
 	}
 
-	i++;
+	//Temporarily blocking out the checksum.
+	*(strchr(buffer, '#')) = '\0';
 
-	unsigned hashtagIndex = i;
-
-	while(buffer[hashtagIndex] != '\0') {
-		if (buffer[hashtagIndex] == '#') {
-			buffer[hashtagIndex] = '\0';
-		}
-		else {
-			hashtagIndex++;
-		}
-	}
-
-	unsigned char* response = gdb_get_response(buffer + i);
+	unsigned char* response = gdb_get_response(dollar + 1);
 
 	gdb_send_message(response);
 	return;
-}
-
-void gdb_SIGILL() {
-	gdb_send_message("S04");
 }
 
 void gdb_start() {
