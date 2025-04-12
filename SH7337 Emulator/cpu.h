@@ -48,8 +48,8 @@ typedef struct {
 } sh7337_t;
 
 typedef struct {
-	char paused;
-	char step;
+	unsigned char paused;
+	unsigned char step;
 	unsigned char breakpoint_index;
 	unsigned long breakpoints[255];
 } cpu_running_state_t;
@@ -60,6 +60,7 @@ cpu_running_state_t* get_cpu_running_state();
 
 void pause_cpu();
 
+unsigned long get_register(unsigned char rn);
 void set_register(unsigned long value, unsigned char rn);
 
 inline void set_pc_little_endian(unsigned long PC);

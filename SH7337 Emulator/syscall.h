@@ -2,11 +2,8 @@
 
 #include "cpu.h"
 
-typedef void (fx_func_t)(sh7337_t *cpu_state);
+void Bdisp_AllClr_DDVRAM();
 
-typedef struct {
-	char* name;
-	fx_func_t* function;
-} fx_syscall_t;
-
-void execute_syscall(sh7337_t *cpu_state);
+void raw_locate(sh7337_t* cpu_state);
+void raw_Print(sh7337_t* cpu_state);
+void raw_GetKey(sh7337_t* cpu_state);

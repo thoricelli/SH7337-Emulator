@@ -27,7 +27,7 @@
     <ClCompile Include="mmu.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="syscall.c">
+    <ClCompile Include="syscall_map.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="gdb.c">
@@ -39,11 +39,18 @@
     <ClCompile Include="checksum.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="TEST.G1A">
-      <Filter>Resource Files</Filter>
-    </None>
+    <ClCompile Include="sdl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="file.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="syscall.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="vram.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cpu.h">
@@ -55,7 +62,7 @@
     <ClInclude Include="mmu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="syscall.h">
+    <ClInclude Include="syscall_map.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="gdb.h">
@@ -67,5 +74,22 @@
     <ClInclude Include="checksum.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sdl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="syscall.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vram.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TEST.g1a">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -18,6 +18,8 @@ struct sockaddr_in server, client;
 
 cpu_running_state_t* cpu_running_state;
 
+char* malloc_str_ptr;
+
 #define LONG_HEX_SIZE 8
 
 char* cpu_state_to_string() {
@@ -29,12 +31,12 @@ char* cpu_state_to_string() {
 	unsigned int hex_array_size = (bank0Size + rSize + 9) * LONG_HEX_SIZE;
 
 	unsigned int index = 0;
-	char* string = malloc(hex_array_size);
+	malloc_str_ptr = malloc(hex_array_size + 1);
 
 	//Bank 0 registers (R0-R6)
 	for (unsigned int i = 0; i < bank0Size; i++)
 	{
-		to_hex_array(cpu_state.bank0->R[i], string + index + (i * LONG_HEX_SIZE), 8);
+		to_hex_array(cpu_state.bank0->R[i], malloc_str_ptr + index + (i * LONG_HEX_SIZE), 8);
 	}
 
 	index += (bank0Size * LONG_HEX_SIZE);
@@ -42,7 +44,7 @@ char* cpu_state_to_string() {
 	//Registers (R7-R14)
 	for (unsigned int i = 0; i < rSize; i++)
 	{
-		to_hex_array(cpu_state.R[i], string + index + (i * LONG_HEX_SIZE), 8);
+		to_hex_array(cpu_state.R[i], malloc_str_ptr + index + (i * LONG_HEX_SIZE), 8);
 	}
 
 	index += (rSize * LONG_HEX_SIZE);
@@ -51,14 +53,14 @@ char* cpu_state_to_string() {
 
 	for (unsigned int i = 0; i < 9; i++)
 	{
-		to_hex_array(states[i], string + index, 8);
+		to_hex_array(states[i], malloc_str_ptr + index, 8);
 
 		index += LONG_HEX_SIZE;
 	}
 
-	string[hex_array_size] = '\0';
+	malloc_str_ptr[hex_array_size] = '\0';
 
-	return string;
+	return malloc_str_ptr;
 }
 
 char* cpu_memory_to_string(unsigned long address, unsigned int size) {
@@ -75,7 +77,7 @@ char* cpu_get_memory(char* message) {
 	unsigned long address = strtoul(message, NULL, 16);
 	unsigned int size = (unsigned int)strtoul(size_ptr, NULL, 16);
 
-	char* buffer = malloc(size * 8);
+	malloc_str_ptr = malloc(size * 8 + 1);
 
 	unsigned long* memory = mmu_translate(address);
 
@@ -86,16 +88,16 @@ char* cpu_get_memory(char* message) {
 		{
 			unsigned char value = *((unsigned char*)memory + i);
 
-			to_hex_array(value, buffer + (i * 2), 2);
+			to_hex_array(value, malloc_str_ptr + (i * 2), 2);
 		}
 
-		buffer[size * 2] = '\0';
+		malloc_str_ptr[size * 2] = '\0';
 	}
 	else {
-		buffer[0] = '\0';
+		malloc_str_ptr[0] = '\0';
 	}
 
-	return buffer;
+	return malloc_str_ptr;
 }
 
 //Well todo, is change the way breakpoints work
@@ -143,10 +145,12 @@ void gdb_send_received() {
 }
 
 void gdb_send_message(const char* response) {
-	unsigned char response_buffer[1024];
-	memcpy(response_buffer, "+$", 2);
-
 	unsigned int size = strlen(response);
+	
+	//+$...#00\0
+	char* response_buffer = malloc(size + 7); // +7 for "+$", '#', 2 checksum chars, '\0'
+
+	memcpy(response_buffer, "+$", 2);
 
 	if (size > 0)
 		memcpy(response_buffer + 2, response, size);
@@ -158,7 +162,14 @@ void gdb_send_message(const char* response) {
 
 	*(response_buffer + 5 + size) = '\0';
 
+	if (malloc_str_ptr != NULL) {
+		free(malloc_str_ptr);
+		malloc_str_ptr = NULL;
+	}
+
 	send_raw(response_buffer);
+
+	free(response_buffer);
 }
 
 char* gdb_get_signal_string(posix_signal signal) {

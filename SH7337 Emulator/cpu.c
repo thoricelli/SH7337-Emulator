@@ -9,7 +9,7 @@ https://bible.planet-casio.com/common/hardware/mpu/sh7720.pdf#page=137
 #include "endianness.h"
 #include "cpu.h"
 #include "mmu.h"
-#include "syscall.h"
+#include "syscall_map.h"
 #include "gdb.h"
 
 #define MSB(x) (x[0] & 0xF0) >> 4
@@ -57,13 +57,13 @@ void step_cpu() {
 
 void set_register(unsigned long value, unsigned char rn) {
 	if (rn < 8)
-		((unsigned long*)cpu_state.bank0)[rn] = value;
+		cpu_state.bank0->R[rn] = value;
 	else
 		cpu_state.R[rn - 0x8] = value;
 }
 
 unsigned long get_register(unsigned char rn) {
-	return rn < 8 ? ((unsigned long*)cpu_state.bank0)[rn] : cpu_state.R[rn - 0x8];
+	return rn < 8 ? cpu_state.bank0->R[rn] : cpu_state.R[rn - 0x8];
 }
 
 inline void increase_pc() {
@@ -78,7 +78,7 @@ void illegal_instruction(unsigned char instruction[2]) {
 	printf("Instruction %x%x not implemented.\n", instruction[0], instruction[1]);
 	printf("PC: %lx\n", cpu_state.PC);
 
-	running_state.paused = 1;
+	pause_cpu();
 	gdb_send_interrupt(SIGILL);
 }
 
