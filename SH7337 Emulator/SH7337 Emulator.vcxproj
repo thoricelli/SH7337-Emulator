@@ -158,7 +158,14 @@
     <ClInclude Include="vram.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="TEST.g1a" />
+    <None Include="TEST.g1a">
+      <DeploymentContent>true</DeploymentContent>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="font.png">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </Image>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

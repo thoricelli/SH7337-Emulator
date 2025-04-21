@@ -27,7 +27,7 @@ inline void locate(int column, int row) {
 }
 
 inline void Print(unsigned char* string) {
-	printf(string);
+	print_vram(string, current_locate.column, current_locate.row);
 }
 
 inline void GetKey(unsigned int* keycode) {
